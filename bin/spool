@@ -1,0 +1,59 @@
+#!/usr/bin/env ruby
+
+require File.expand_path('../../lib/spool', __FILE__)
+
+class Client
+  
+  HELP = %q{Commands:
+  spool start <CONFIG_FILE>    # Start new process pool
+  spool stop <PID>             # Graceful processes stop
+  spool restart <PID>          # Restart process pool
+  spool kill <PID>             # Force kill processes
+  spool status <PID>           # Show pool status
+  spool incr <COUNT> <PID>     # Increase process count
+  spool decr <COUNT> <PID>     # Decrease process count
+  spool version                # Show version number
+  }
+
+  def self.run(args)
+    command = args.shift
+    if command
+      public_send command, *args
+    else
+      help
+    end
+  end
+
+  def self.help
+    puts HELP
+  end
+
+  def self.start(config_file)
+    puts "Start with #{config_file}"
+  end
+
+  def self.stop(pid)
+  end
+
+  def self.restart(pid)
+  end
+
+  def self.kill(pid)
+  end
+
+  def self.status(pid)
+  end
+
+  def self.incr(count, pid)
+  end
+
+  def self.decr(count, pid)
+  end
+
+  def self.version(pid)
+    puts Spool::VERSION
+  end
+
+end
+
+Client.run ARGV
