@@ -1,13 +1,22 @@
 module Spool
   class Pool
 
+    SIGNALS = {
+      INT:  :stop!,
+      TERM: :stop!,
+      QUIT: :stop,
+      HUP:  :reload,
+      USR2: :restart,
+      TTIN: :incr,
+      TTOU: :decr
+    }
+
     attr_reader :configuration, :runner, :processes
     
     def initialize(configuration=nil, &block)
       @configuration = configuration || DSL.configure(&block)
       @processes = []
       @started = false
-      @mutex = Mutex.new
     end
 
     def started?
@@ -21,6 +30,10 @@ module Spool
     def start
       @started = true
 
+      handle_signals
+
+      File.write configuration.pidfile, Process.pid if configuration.pidfile
+
       configuration.processes.times.map do
         processes << Spawner.spawn(configuration)
       end
@@ -31,63 +44,72 @@ module Spool
       end
     end
 
-    def stop(timeout=nil)
+    def stop(timeout=0)
       processes.each(&:stop)
-      
-      if timeout
-        kill_on timeout
-      else
-        wait_for_stopped
-      end
+      Timeout.timeout(timeout) { wait_for_stopped processes }
+    rescue Timeout::Error
+    ensure
+      stop!
+    end
 
+    def stop!
+      processes.each(&:kill)
       processes.clear
-      
+      File.delete configuration.pidfile if File.exists? configuration.pidfile
       @started = false
     end
 
     def incr(count=1)
       configuration.processes += count
-      check_status
     end
 
     def decr(count=1)
       configuration.processes -= count
-      check_status
+    end
+
+    def reload
+      @configuration = DSL.configure configuration.source_file if configuration.source_file
+    end
+
+    def restart
+      processes.each(&:stop)
     end
 
     private
 
-    def check_status
-      @mutex.synchronize do
-        processes.select(&configuration.restart_condition).each(&:stop) if configuration.restart_condition
-        processes.delete_if { |p| !p.alive? }
-        
-        if configuration.processes > processes.count
-          (configuration.processes - processes.count).times do
-            processes << Spawner.spawn(configuration)
-          end
-
-        elsif configuration.processes < processes.count
-          list = processes.take(processes.count - configuration.processes)
-          list.each(&:stop)
-          wait_for_stopped list
-          list.each { |p| processes.delete p }
-
-        end
+    def handle_signals
+      SIGNALS.each do |signal, event|
+        Signal.trap(signal) { send event }
       end
     end
 
-    def wait_for_stopped(list=nil)
-      list ||= processes
-      while list.any?(&:alive?)
+    def check_status 
+      return if stopped?
+
+      processes.select(&configuration.restart_condition).each(&:stop) if configuration.restart_condition
+      processes.delete_if { |p| !p.alive? }
+
+      if configuration.processes > processes.count
+        (configuration.processes - processes.count).times do
+          processes << Spawner.spawn(configuration)
+        end
+
+      elsif configuration.processes < processes.count
+        list = processes.take(processes.count - configuration.processes)
+        list.each(&:stop)
+        wait_for_stopped list
+        list.each { |p| processes.delete p }
+
+      end
+
+    rescue
+      retry
+    end
+
+    def wait_for_stopped(processes)
+      while processes.any?(&:alive?)
         sleep 0.01
       end
-    end
-
-    def kill_on(timeout)
-      Timeout.timeout(timeout) { wait_for_stopped }
-    rescue Timeout::Error
-      processes.each(&:kill)
     end
 
   end

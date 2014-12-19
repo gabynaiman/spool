@@ -14,7 +14,11 @@ module Spool
     end
 
     def dir
-      @dir ||= Dir.pwd
+      @dir ||= source_file ? File.dirname(source_file) : Dir.pwd
+    end
+
+    def pidfile
+      @pidfile ||= File.join(dir, (source_file ? "#{File.basename(source_file, '.*')}.pid" : 'pool.pid'))
     end
 
   end

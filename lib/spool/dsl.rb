@@ -13,7 +13,7 @@ module Spool
     def initialize(filename=nil, &block)
       @configuration = Configuration.new
       if filename
-        configuration.source_file = filename
+        configuration.source_file = File.expand_path filename
         instance_eval IO.read(filename), filename
       else
         instance_eval &block
@@ -28,8 +28,8 @@ module Spool
       configuration.env = env
     end
 
-    def chdir(dir)
-      configuration.dir = dir
+    def dir(dir)
+      configuration.dir = File.expand_path dir
     end
 
     def command(command)

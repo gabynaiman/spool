@@ -3,7 +3,7 @@ require 'minitest_helper'
 describe Spool::Pool do
 
   after do
-    @pool.stop if @pool
+    @pool.stop! if @pool
     machine = Datacenter::Machine.new
     machine.processes('ruby -e').each(&:kill)
   end
@@ -13,6 +13,14 @@ describe Spool::Pool do
       t = Thread.new { pool.start }
       t.abort_on_exception = true
       while pool.processes.count < pool.configuration.processes
+      end
+    end
+  end
+
+  def assert_with_timeout(timeout, &block)
+    Timeout.timeout(timeout) do
+      until block.call
+        sleep 0.01
       end
     end
   end
@@ -78,7 +86,7 @@ describe Spool::Pool do
 
     pool.incr 2
 
-    pool.processes.count.must_equal 3
+    assert_with_timeout(1) { pool.processes.count == 3 }
   end
 
   it 'Decrease processes' do
@@ -91,7 +99,7 @@ describe Spool::Pool do
 
     pool.decr 2
 
-    pool.processes.count.must_equal 1
+    assert_with_timeout(1) { pool.processes.count == 1 }
   end
 
   it 'Change process when satisfied stop condition' do

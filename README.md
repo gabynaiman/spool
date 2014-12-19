@@ -24,7 +24,36 @@ Or install it yourself as:
 
 ## Usage
 
-TODO: Write usage instructions here
+### Configuration
+
+    # cat worker.rb
+    loop do
+      puts "#{Process.pid} - #{Time.now}"
+      sleep 1
+    end
+
+    # cat pool_config.rb
+    processes 4
+    command 'ruby worker.rb'
+    
+    # optional
+    dir File.dirname(__FILE__)
+    env VAR1: 'foo', VAR2: 'bar'
+    pidfile 'pool.pid'
+    restart_when { |p| p.memory > 512 }
+
+### Start
+
+    console:~$ spool pool_config.rb
+
+### Signals
+
+- **INT/TERM:** quick shutdown, kills all processes immediately
+- **QUIT:** graceful shutdown, waits for processes to finish
+- **HUP:** reloads config file and gracefully restart all processes
+- **USR2:** gracefully restart all processes with current configuration
+- **TTIN:** increment the number of processes by one
+- **TTOU:** decrement the number of processes by one
 
 ## Contributing
 

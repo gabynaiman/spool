@@ -1,6 +1,7 @@
 require 'datacenter'
 require 'securerandom'
 require 'timeout'
+require 'tmpdir'
 
 require_relative 'spool/version'
 require_relative 'spool/dsl'

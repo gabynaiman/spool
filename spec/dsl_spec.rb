@@ -8,7 +8,7 @@ describe Spool::DSL do
     config = Spool::DSL.configure do
       processes 10
       env VAR_1: 1, VAR_2: 2
-      chdir '/tmp'
+      dir '/tmp'
       command 'tailf file.log'
       pidfile '/tailf.pid'
       restart_when { |p| p.memory > 512 }

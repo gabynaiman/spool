@@ -1,0 +1,14 @@
+#!/usr/bin/env ruby
+
+if ARGV.empty? || !File.exists?(ARGV.first)
+  puts "Invalid pool specification file: #{ARGV.first}"
+  exit 1
+end
+
+pid = fork do
+  require File.expand_path('../lib/spool', File.dirname(__FILE__))
+  config = Spool::DSL.configure ARGV.first
+  Spool::Pool.new(config).start
+end
+
+puts "Pool started (#{pid})"

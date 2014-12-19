@@ -32,9 +32,9 @@ module Spool
       end
 
     ensure
-      File.delete script_file
-      File.delete out_file
-      File.delete pid_file
+      [script_file, out_file, pid_file].each do |filename|
+        File.delete filename if File.exists? filename
+      end
     end
 
     def self.spawn(configuration)
