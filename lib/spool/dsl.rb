@@ -20,6 +20,10 @@ module Spool
       end
     end
 
+    def name(name)
+      configuration.name = name
+    end
+
     def processes(count)
       configuration.processes = count
     end
@@ -36,12 +40,32 @@ module Spool
       configuration.command = command
     end
 
-    def pidfile(pidfile)
-      configuration.pidfile = pidfile
+    def pid_file(pid_file)
+      configuration.pid_file = pid_file
     end
 
     def restart_when(&block)
       configuration.restart_condition = block
+    end
+
+    def stop_signal(signal)
+      configuration.stop_signal = signal.to_sym
+    end
+
+    def kill_signal(signal)
+      configuration.kill_signal = signal.to_sym
+    end
+
+    def log_file(filename)
+      configuration.log_file = filename
+    end
+
+    def log_level(level)
+      configuration.log_level = level.to_s.upcase
+    end
+
+    def log_formatter(&block)
+      configuration.log_formatter = block
     end
 
   end

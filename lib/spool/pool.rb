@@ -32,11 +32,12 @@ module Spool
 
       handle_signals
 
-      File.write configuration.pidfile, Process.pid if configuration.pidfile
+      File.write configuration.pid_file, Process.pid if configuration.pid_file
 
       configuration.processes.times.map do
         processes << Spawner.spawn(configuration)
       end
+      logger.debug(self.class) { "SPOOL START childrens: #{processes.map(&:pid)}" }
 
       while @started
         check_status
@@ -45,18 +46,22 @@ module Spool
     end
 
     def stop(timeout=0)
-      processes.each(&:stop)
+      logger.debug(self.class) { "SPOOL STOP" }
+      stop_processes processes
       Timeout.timeout(timeout) { wait_for_stopped processes }
     rescue Timeout::Error
+      logger.debug(self.class) { "ERROR IN SPOOL STOP" }
     ensure
       stop!
     end
 
     def stop!
-      processes.each(&:kill)
-      processes.clear
-      File.delete configuration.pidfile if File.exists? configuration.pidfile
       @started = false
+      logger.debug(self.class) { "SPOOL STOP! kill this children (#{processes.map(&:pid)})" }
+      processes.each { |p| p.send_signal configuration.kill_signal}
+      wait_for_stopped processes
+      processes.clear
+      File.delete configuration.pid_file if File.exists? configuration.pid_file
     end
 
     def incr(count=1)
@@ -72,7 +77,8 @@ module Spool
     end
 
     def restart
-      processes.each(&:stop)
+      logger.debug(self.class) { "RESTART" }
+      stop_processes processes
     end
 
     private
@@ -86,30 +92,46 @@ module Spool
     def check_status 
       return if stopped?
 
-      processes.select(&configuration.restart_condition).each(&:stop) if configuration.restart_condition
+      stop_processes processes.select(&configuration.restart_condition)
       processes.delete_if { |p| !p.alive? }
 
+      return if stopped?
       if configuration.processes > processes.count
+        logger.debug(self.class) { "Initialize new children: #{processes.map(&:pid)}" }
+
         (configuration.processes - processes.count).times do
           processes << Spawner.spawn(configuration)
         end
 
+        logger.debug(self.class) { "new children: #{processes.map(&:pid)}" }
+      
       elsif configuration.processes < processes.count
+        logger.debug(self.class) { "Kill childrens: #{processes.map(&:pid)}" }
+
         list = processes.take(processes.count - configuration.processes)
-        list.each(&:stop)
+        stop_processes list
         wait_for_stopped list
         list.each { |p| processes.delete p }
 
+        logger.debug(self.class) { "After kill childrens: #{processes.map(&:pid)}" }
       end
 
     rescue
       retry
     end
 
+    def stop_processes(processes_list)
+      processes_list.each { |p| p.send_signal configuration.stop_signal }
+    end
+
     def wait_for_stopped(processes)
       while processes.any?(&:alive?)
         sleep 0.01
       end
+    end
+
+    def logger
+      configuration.logger
     end
 
   end
