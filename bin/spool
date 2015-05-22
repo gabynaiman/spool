@@ -8,6 +8,7 @@ end
 pid = fork do
   require File.expand_path('../lib/spool', File.dirname(__FILE__))
   config = Spool::DSL.configure ARGV.first
+  $PROGRAM_NAME = "ruby spool #{config.name}"
   Spool::Pool.new(config).start
 end
 
