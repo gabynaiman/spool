@@ -163,7 +163,7 @@ describe Spool::Pool do
     memory = File.read(file_name).to_i
     File.delete(file_name) 
 
-    memory.must_be :>=, 400
+    memory.must_be :>=, 300
     pool.processes.count.must_equal 1
     pool.processes[0].pid.wont_equal process.pid
   end
@@ -191,19 +191,5 @@ describe Spool::Pool do
 
     pool.stop!
   end
-
-  # it 'Custom configs in pool' do
-  #   file_name = File.expand_path 'log/testeando.log'
-
-  #   pool = start_pool do
-  #     name 'SPOOL_TEST'
-  #     processes 2
-  #     command 'ruby -e "loop do; sleep 1; end"'
-  #     log_file file_name
-  #     log_level :DEBUG
-  #   end
-
-  #   pool.stop!
-  # end
 
 end
