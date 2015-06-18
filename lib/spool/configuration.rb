@@ -56,7 +56,7 @@ module Spool
     end
 
     def log_level
-      @log_level ||= 'DEBUG'
+      @log_level ||= 'INFO'
     end
 
     def logger
