@@ -18,7 +18,7 @@ Gem::Specification.new do |spec|
   spec.test_files    = spec.files.grep(%r{^(test|spec|features)/})
   spec.require_paths = ['lib']
 
-  # spec.add_dependency 'datacenter', '~> 0.2.0'
+  spec.add_dependency 'datacenter', '~> 0.4', '>= 0.4.4'
   spec.add_dependency 'mono_logger'
 
   spec.add_development_dependency 'bundler', '~> 1.5'
