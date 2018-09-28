@@ -33,7 +33,7 @@ module Spool
 
     ensure
       [script_file, out_file, pid_file].each do |filename|
-        File.delete filename if File.exists? filename
+        File.delete filename if File.exist? filename
       end
     end
 
@@ -45,7 +45,7 @@ module Spool
 
     def wait_for_pid(pid_file)
       Timeout.timeout(60) do
-        until File.exists?(pid_file); end
+        until File.exist?(pid_file); end
         IO.read(pid_file).to_i
       end
     rescue Timeout::Error

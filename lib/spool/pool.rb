@@ -1,6 +1,8 @@
 module Spool
   class Pool
 
+    CHECK_TIMEOUT = 0.05
+
     SIGNALS = {
       INT:  :stop!,
       TERM: :stop!,
@@ -11,24 +13,31 @@ module Spool
       TTOU: :decr
     }
 
-    attr_reader :configuration, :runner, :processes
+    attr_reader :configuration, :processes
     
     def initialize(configuration=nil, &block)
       @configuration = configuration || DSL.configure(&block)
       @processes = []
-      @started = false
+      @running = false
+      @actions_queue = []
     end
 
-    def started?
-      @started
+    def running?
+      @running
     end
 
     def stopped?
-      !started?
+      !running?
+    end
+
+    [:incr, :decr, :reload, :restart, :stop, :stop!].each do |method|
+      define_method method do |*args|
+        actions_queue.push(name: "_#{method}".to_sym, args: args)
+      end
     end
 
     def start
-      @started = true
+      @running = true
 
       handle_signals
 
@@ -37,51 +46,23 @@ module Spool
       configuration.processes.times.map do
         processes << Spawner.spawn(configuration)
       end
+
       logger.info(self.class) { "SPOOL START childrens: #{processes.map(&:pid)}" }
 
-      while @started
-        check_status
-        sleep 0.05
+      while running?
+        action = actions_queue.pop
+        send action[:name], *action[:args] if action
+
+        if running?
+          check_status
+          sleep CHECK_TIMEOUT
+        end
       end
     end
 
-    def stop(timeout=0)
-      logger.info(self.class) { "SPOOL STOP" }
-      stop_processes processes
-      Timeout.timeout(timeout) { wait_for_stopped processes }
-    rescue Timeout::Error
-      logger.error(self.class) { "ERROR IN SPOOL STOP. Timeout error" }
-    ensure
-      stop!
-    end
-
-    def stop!
-      @started = false
-      logger.info(self.class) { "SPOOL STOP! kill this children (#{processes.map(&:pid)})" }
-      processes.each { |p| p.send_signal configuration.kill_signal}
-      wait_for_stopped processes
-      processes.clear
-      File.delete configuration.pid_file if File.exists? configuration.pid_file
-    end
-
-    def incr(count=1)
-      configuration.processes += count
-    end
-
-    def decr(count=1)
-      configuration.processes -= count
-    end
-
-    def reload
-      @configuration = DSL.configure configuration.source_file if configuration.source_file
-    end
-
-    def restart
-      logger.info(self.class) { "RESTART" }
-      stop_processes processes
-    end
-
     private
+
+    attr_reader :actions_queue
 
     def handle_signals
       SIGNALS.each do |signal, event|
@@ -89,13 +70,12 @@ module Spool
       end
     end
 
-    def check_status 
-      return if stopped?
-
-      stop_processes processes.select(&configuration.restart_condition)
+    def check_status
       processes.delete_if { |p| !p.alive? }
+      
+      to_restart = processes.select(&configuration.restart_condition)
+      stop_processes to_restart
 
-      return if stopped?
       if configuration.processes > processes.count
         logger.info(self.class) { "Initialize new children: #{processes.map(&:pid)}" }
 
@@ -104,7 +84,6 @@ module Spool
         end
 
         logger.info(self.class) { "new children: #{processes.map(&:pid)}" }
-      
       elsif configuration.processes < processes.count
         logger.info(self.class) { "Kill childrens: #{processes.map(&:pid)}" }
 
@@ -116,12 +95,61 @@ module Spool
         logger.info(self.class) { "After kill childrens: #{processes.map(&:pid)}" }
       end
 
-    rescue
-      retry
+    rescue Exception => e
+      log_error e
+    end
+
+
+    def _incr(count=1)
+      configuration.processes += count
+    end
+
+    def _decr(count=1)
+      configuration.processes -= count
+    end
+
+    def _reload
+      @configuration = DSL.configure configuration.source_file if configuration.source_file
+    end
+
+    def _restart
+      logger.info(self.class) { "RESTART" }
+      stop_processes processes
+    end
+
+    def _stop(timeout=0)
+      logger.info(self.class) { "SPOOL STOP" }
+
+      stop_processes processes
+      Timeout.timeout(timeout) { wait_for_stopped processes }
+    rescue Timeout::Error
+      logger.error(self.class) { "ERROR IN SPOOL STOP. Timeout error" }
+    ensure
+      _stop! 
+      @running = false
+    end
+
+    def _stop!
+      
+      logger.info(self.class) { "SPOOL STOP! kill this children (#{processes.map(&:pid)})" }
+
+      processes.each { |p| p.send_signal(configuration.kill_signal) if p.alive? }
+      wait_for_stopped processes
+      
+      processes.clear
+      
+      File.delete configuration.pid_file if File.exist? configuration.pid_file
+      @running = false
     end
 
     def stop_processes(processes_list)
-      processes_list.each { |p| p.send_signal configuration.stop_signal }
+      processes_list.each do |p| 
+        begin
+          p.send_signal configuration.stop_signal
+        rescue Exception => e
+          log_error e
+        end
+      end
     end
 
     def wait_for_stopped(processes)
@@ -132,6 +160,10 @@ module Spool
 
     def logger
       configuration.logger
+    end
+
+    def log_error(error)
+      logger.error(self.class) { "#{error.message}\n#{error.backtrace.join("\n")}" }
     end
 
   end
