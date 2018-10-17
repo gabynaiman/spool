@@ -52,13 +52,19 @@ module Spool
 
       while running?
         action = actions_queue.pop
-        send action[:name], *action[:args] if action
+        
+        if action
+          logger.info(self.class) { "Starting action #{action[:name]} with params: [#{action[:args].join(', ')}]" }
+          send action[:name], *action[:args] 
+        end
 
         if running?
           check_status
           sleep CHECK_TIMEOUT
         end
       end
+
+      logger.info(self.class) { "Spool finished successfully!" }
     end
 
     private
@@ -67,7 +73,10 @@ module Spool
 
     def handle_signals
       SIGNALS.each do |signal, event|
-        Signal.trap(signal) { send event }
+        Signal.trap(signal) do
+          logger.info(self.class) { "Signal #{signal} received. Current state of actions queue is:\n#{format_actions_queue}" }
+          send event
+        end
       end
     end
 
@@ -176,6 +185,14 @@ module Spool
 
     def log_error(error)
       logger.error(self.class) { "#{error.message}\n#{error.backtrace.join("\n")}" }
+    end
+
+    def format_actions_queue
+      return "EMPTY" if actions_queue.empty?
+      
+      actions_queue.map.with_index do |action, index| 
+        "#{index+1} => #{a[:name]}"
+      end.join("\n")
     end
 
   end
