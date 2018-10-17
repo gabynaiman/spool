@@ -9,16 +9,8 @@ module Spool
 
     def spawn
       base_file = File.join Dir.tmpdir, SecureRandom.uuid
-      pid_file = "#{base_file}.pid"
       out_file = "#{base_file}.out"
-      script_file = "#{base_file}.sh"
       command = configuration.command.strip
-
-      File.write script_file, %Q{
-        #!/usr/bin/env bash
-        #{command} &
-        echo $! > #{pid_file}
-      }
 
       pid = Process.spawn configuration.env, 
                           "exec #{command}", 
@@ -33,9 +25,7 @@ module Spool
       end
 
     ensure
-      [script_file, out_file, pid_file].each do |filename|
-        File.delete filename if File.exist? filename
-      end
+      File.delete out_file if File.exist? out_file
     end
 
     def self.spawn(configuration)
