@@ -33,6 +33,7 @@ module Spool
     [:incr, :decr, :reload, :restart, :stop, :stop!].each do |method|
       define_method method do |*args|
         actions_queue.push(name: "_#{method}".to_sym, args: args)
+        nil
       end
     end
 
@@ -106,6 +107,7 @@ module Spool
 
     def _decr(count=1)
       configuration.processes -= count
+      configuration.processes = 0 if configuration.processes < 0
     end
 
     def _reload
@@ -130,7 +132,6 @@ module Spool
     end
 
     def _stop!
-      
       logger.info(self.class) { "SPOOL STOP! kill this children (#{processes.map(&:pid)})" }
 
       processes.each { |p| p.send_signal(configuration.kill_signal) if p.alive? }

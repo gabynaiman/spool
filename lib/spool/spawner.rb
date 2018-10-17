@@ -12,23 +12,24 @@ module Spool
       pid_file = "#{base_file}.pid"
       out_file = "#{base_file}.out"
       script_file = "#{base_file}.sh"
+      command = configuration.command.strip
 
       File.write script_file, %Q{
         #!/usr/bin/env bash
-        #{configuration.command.strip} &
+        #{command} &
         echo $! > #{pid_file}
       }
 
-      ::Process.spawn configuration.env, 
-                      "sh #{script_file}", 
-                      chdir: configuration.dir, 
-                      out: out_file, 
-                      err: out_file
+      pid = Process.spawn configuration.env, 
+                          "exec #{command}", 
+                          chdir: configuration.dir, 
+                          out: out_file, 
+                          err: out_file
 
-      pid = wait_for_pid pid_file
+      Process.detach pid
 
       Datacenter::Process.new(pid).tap do |process|
-        raise "Invalid command: #{configuration.command}\n#{IO.read(out_file)}" unless process.alive?
+        raise "Invalid command: #{command}\n#{IO.read(out_file)}" unless process.alive?
       end
 
     ensure
@@ -39,17 +40,6 @@ module Spool
 
     def self.spawn(configuration)
       new(configuration).spawn
-    end
-
-    private
-
-    def wait_for_pid(pid_file)
-      Timeout.timeout(60) do
-        until File.exist?(pid_file); end
-        IO.read(pid_file).to_i
-      end
-    rescue Timeout::Error
-      nil
     end
 
   end
