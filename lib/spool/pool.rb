@@ -1,7 +1,7 @@
 module Spool
   class Pool
 
-    CHECK_TIMEOUT = 0.05
+    CHECK_TIMEOUT = 0.01
 
     SIGNALS = {
       INT:  :stop!,
@@ -84,7 +84,7 @@ module Spool
           processes << Spawner.spawn(configuration)
         end
 
-        logger.info(self.class) { "new children: #{processes.map(&:pid)}" }
+        logger.info(self.class) { "New children: #{processes.map(&:pid)}" }
       elsif configuration.processes < processes.count
         logger.info(self.class) { "Kill childrens: #{processes.map(&:pid)}" }
 
@@ -134,7 +134,18 @@ module Spool
     def _stop!
       logger.info(self.class) { "SPOOL STOP! kill this children (#{processes.map(&:pid)})" }
 
-      processes.each { |p| p.send_signal(configuration.kill_signal) if p.alive? }
+      processes.each do |p| 
+        begin
+          p.send_signal(configuration.kill_signal) if p.alive?
+        rescue Datacenter::Shell::CommandError => e
+          if p.alive?
+            log_error e
+          else
+            logger.info(self.class) { "Signal KILL was sent to #{p.pid} but process was already dead" }
+          end
+        end
+      end
+
       wait_for_stopped processes
       
       processes.clear
