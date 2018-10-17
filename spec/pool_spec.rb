@@ -87,12 +87,12 @@ describe Spool::Pool do
     original_process = pool.processes[0]
     original_process.send_signal :KILL
 
-    original_process.wont_be :alive?
-    
     begin
       sleep SLEEP_TIME
       new_pid = pool.processes.any? ? pool.processes[0].pid : original_process.pid
     end while original_process.pid == new_pid
+    
+    original_process.wont_be :alive?
 
     pool.processes.count.must_equal 1
     pool.processes[0].must_be :alive?
