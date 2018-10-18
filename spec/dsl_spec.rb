@@ -21,7 +21,7 @@ describe Spool::DSL do
     end
 
     assert_configuration config
-    config.source_file.must_equal nil
+    config.source_file.must_be_nil
   end
 
   it 'Configure from file' do
