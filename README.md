@@ -1,10 +1,10 @@
 # Spool
 
-[![Gem Version](https://badge.fury.io/rb/spool.png)](https://rubygems.org/gems/spool)
-[![Build Status](https://travis-ci.org/gabynaiman/spool.png?branch=master)](https://travis-ci.org/gabynaiman/spool)
-[![Coverage Status](https://coveralls.io/repos/gabynaiman/spool/badge.png?branch=master)](https://coveralls.io/r/gabynaiman/spool?branch=master)
-[![Code Climate](https://codeclimate.com/github/gabynaiman/spool.png)](https://codeclimate.com/github/gabynaiman/spool)
-[![Dependency Status](https://gemnasium.com/gabynaiman/spool.png)](https://gemnasium.com/gabynaiman/spool)
+[![Gem Version](https://badge.fury.io/rb/spool.svg)](https://rubygems.org/gems/spool)
+[![Build Status](https://travis-ci.org/gabynaiman/spool.svg?branch=master)](https://travis-ci.org/gabynaiman/spool)
+[![Coverage Status](https://coveralls.io/repos/gabynaiman/spool/badge.svg?branch=master)](https://coveralls.io/r/gabynaiman/spool?branch=master)
+[![Code Climate](https://codeclimate.com/github/gabynaiman/spool.svg)](https://codeclimate.com/github/gabynaiman/spool)
+[![Dependency Status](https://gemnasium.com/gabynaiman/spool.svg)](https://gemnasium.com/gabynaiman/spool)
 
 Manage and keep alive pool of processes
 

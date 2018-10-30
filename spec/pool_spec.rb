@@ -10,7 +10,7 @@ describe Spool::Pool do
     begin
       machine.processes('ruby -e').each {|p| p.send_signal :KILL}
     rescue
-      puts "All processes dead. I hope"
+      # All processes dead. I hope
     end
   end
 
