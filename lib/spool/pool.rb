@@ -84,6 +84,7 @@ module Spool
       processes.delete_if { |p| !p.alive? }
       
       to_restart = processes.select(&configuration.restart_condition)
+      logger.info(self.class) {"Restart condition successful in child processes: #{to_restart.map(&:pid)}"} if to_restart.any?
       stop_processes to_restart
 
       if configuration.processes > processes.count
@@ -166,6 +167,7 @@ module Spool
     def stop_processes(processes_list)
       processes_list.each do |p| 
         begin
+          logger.info(self.class) {"Going to kill process #{p.pid}, alive? => #{p.alive?}"}
           p.send_signal configuration.stop_signal
         rescue Exception => e
           log_error e
