@@ -18,7 +18,7 @@ module Spool
     def initialize(configuration=nil, &block)
       @configuration = configuration || DSL.configure(&block)
       @processes = []
-      @signalled_processes = Hash.new{ |h,k| h[k] << Set.new }
+      @signalled_processes = Hash.new{ |h,k| h[k] = Set.new }
       @running = false
       @actions_queue = []
     end
@@ -157,6 +157,7 @@ module Spool
       wait_for_stopped processes
       
       processes.clear
+      signalled_processes.clear
       
       File.delete configuration.pid_file if File.exist? configuration.pid_file
       @running = false
@@ -189,7 +190,7 @@ module Spool
     end
 
     def clear_dead_processes
-      processes.reject{ |p| p.alive }.each do |dead_process|
+      processes.reject{ |p| p.alive? }.each do |dead_process|
         processes.delete_if { |p| p.pid == dead_process.pid }
         signalled_processes.delete dead_process.pid
       end
