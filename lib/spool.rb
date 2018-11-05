@@ -3,6 +3,7 @@ require 'securerandom'
 require 'timeout'
 require 'tmpdir'
 require 'mono_logger'
+require 'set'
 
 require_relative 'spool/version'
 require_relative 'spool/dsl'

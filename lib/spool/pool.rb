@@ -13,11 +13,12 @@ module Spool
       TTOU: :decr
     }
 
-    attr_reader :configuration, :processes
+    attr_reader :configuration, :processes, :signalled_processes
     
     def initialize(configuration=nil, &block)
       @configuration = configuration || DSL.configure(&block)
       @processes = []
+      @signalled_processes = Hash.new{ |h,k| h[k] << Set.new }
       @running = false
       @actions_queue = []
     end
@@ -81,12 +82,10 @@ module Spool
     end
 
     def check_status
-      processes.delete_if { |p| !p.alive? }
-      
-      to_restart = processes.select(&configuration.restart_condition)
-      logger.info(self.class) {"Restart condition successful in child processes: #{to_restart.map(&:pid)}"} if to_restart.any?
-      stop_processes to_restart
+      clear_dead_processes
 
+      check_processes_to_restart
+      
       if configuration.processes > processes.count
         logger.info(self.class) { "Initialize new children: #{processes.map(&:pid)}" }
 
@@ -109,7 +108,6 @@ module Spool
     rescue Exception => e
       log_error e
     end
-
 
     def _incr(count=1)
       configuration.processes += count
@@ -146,7 +144,7 @@ module Spool
 
       processes.each do |p| 
         begin
-          p.send_signal(configuration.kill_signal) if p.alive?
+          send_signal_to(p, configuration.kill_signal) if p.alive?
         rescue Datacenter::Shell::CommandError => e
           if p.alive?
             log_error e
@@ -167,8 +165,7 @@ module Spool
     def stop_processes(processes_list)
       processes_list.each do |p| 
         begin
-          logger.info(self.class) {"Going to kill process #{p.pid}, alive? => #{p.alive?}"}
-          p.send_signal configuration.stop_signal
+          send_signal_to p, configuration.stop_signal
         rescue Exception => e
           log_error e
         end
@@ -178,6 +175,33 @@ module Spool
     def wait_for_stopped(processes)
       while processes.any?(&:alive?)
         sleep 0.01
+      end
+    end
+
+    def check_processes_to_restart
+      to_restart = processes.select(&configuration.restart_condition)
+                            .reject{ |p| signalled_processes.has_key? p.pid } 
+
+      if to_restart.any?
+        logger.info(self.class) {"Restart condition successful in child processes: #{to_restart.map(&:pid)}"}
+        stop_processes to_restart
+      end
+    end
+
+    def clear_dead_processes
+      processes.reject{ |p| p.alive }.each do |dead_process|
+        processes.delete_if { |p| p.pid == dead_process.pid }
+        signalled_processes.delete dead_process.pid
+      end
+    end
+
+    def send_signal_to(process, signal)
+      pid = process.pid
+
+      unless signalled_processes.has_key?(pid) && signalled_processes[pid].include?(signal)
+        logger.info(self.class) {"Going to send signal #{signal} to process #{pid}, alive? => #{process.alive?}"}
+        process.send_signal signal
+        signalled_processes[pid] << signal
       end
     end
 
