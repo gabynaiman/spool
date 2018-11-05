@@ -193,7 +193,7 @@ module Spool
       return "EMPTY" if actions_queue.empty?
       
       actions_queue.map.with_index do |action, index| 
-        "#{index+1} => #{a[:name]}"
+        "#{index+1} => #{action[:name]}"
       end.join("\n")
     end
 
