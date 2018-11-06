@@ -98,7 +98,7 @@ module Spool
           working_processes << Spawner.spawn(configuration)
         end
 
-        logger.info(self.class) { "New children: #{working_processes.last.pid}" }
+        logger.info(self.class) { "Status after new childrens => #{format_processes}}" }
       elsif configuration.processes < working_processes.count
         count_to_kill = working_processes.count - configuration.processes
         logger.info(self.class) { "Killing #{count_to_kill} children. Current state => #{format_processes}" }
