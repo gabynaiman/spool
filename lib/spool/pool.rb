@@ -147,7 +147,7 @@ module Spool
 
       all_processes.each do |p| 
         begin
-          p.send_signal(configuration.kill_signal) if p.alive?
+          send_signal_to(p, configuration.kill_signal) if p.alive?
         rescue Datacenter::Shell::CommandError => e
           log_error e
         end
@@ -165,7 +165,7 @@ module Spool
     def stop_processes(processes_list)
       processes_list.each do |p| 
         begin
-          p.send_signal configuration.stop_signal
+          send_signal_to p, configuration.stop_signal
           zombie_processes << p
         rescue Exception => e
           log_error e
@@ -188,6 +188,11 @@ module Spool
         logger.info(self.class) {"Restart condition successful in child processes: #{to_restart.map(&:pid)}"}
         stop_processes to_restart
       end
+    end
+
+    def send_signal_to(process, signal)
+      logger.info(self.class) { "Going to send signal #{signal} to process #{process.pid}" }
+      process.send_signal signal
     end
 
     def clear_dead_processes
