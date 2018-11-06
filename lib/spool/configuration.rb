@@ -63,7 +63,6 @@ module Spool
       @logger ||= MonoLogger.new(log_file).tap do |logger|
         logger.level = MonoLogger.const_get log_level
         logger.formatter = log_formatter
-        Datacenter.logger = logger
       end
     end
 

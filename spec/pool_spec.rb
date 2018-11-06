@@ -18,7 +18,7 @@ describe Spool::Pool do
     @pool = Spool::Pool.new(&block).tap do |pool|
       t = Thread.new { pool.start }
       t.abort_on_exception = true
-      while pool.processes.count < pool.configuration.processes
+      while pool.all_processes.count < pool.configuration.processes
         sleep 0.01
       end
     end
@@ -40,10 +40,10 @@ describe Spool::Pool do
     end
 
     pool.must_be :running?
-    pool.processes.count.must_equal 1
-    pool.processes[0].must_be :alive?
+    pool.all_processes.count.must_equal 1
+    pool.all_processes[0].must_be :alive?
 
-    process = pool.processes[0]
+    process = pool.all_processes[0]
     pool.stop
 
     while pool.running?
@@ -51,7 +51,7 @@ describe Spool::Pool do
     end 
 
     pool.must_be :stopped?
-    pool.processes.must_be_empty
+    pool.all_processes.must_be_empty
     process.wont_be :alive?
   end
 
@@ -62,10 +62,10 @@ describe Spool::Pool do
     end
 
     pool.must_be :running?
-    pool.processes.count.must_equal 1
-    pool.processes[0].must_be :alive?
+    pool.all_processes.count.must_equal 1
+    pool.all_processes[0].must_be :alive?
 
-    process = pool.processes[0]
+    process = pool.all_processes[0]
 
     pool.stop!
 
@@ -74,7 +74,7 @@ describe Spool::Pool do
     end 
 
     pool.must_be :stopped?
-    pool.processes.must_be_empty
+    pool.all_processes.must_be_empty
     process.wont_be :alive?
   end
 
@@ -84,18 +84,18 @@ describe Spool::Pool do
       command 'ruby -e "loop do; sleep 1; end"'
     end
 
-    original_process = pool.processes[0]
+    original_process = pool.all_processes[0]
     original_process.send_signal :KILL
 
     begin
       sleep SLEEP_TIME
-      new_pid = pool.processes.any? ? pool.processes[0].pid : original_process.pid
+      new_pid = pool.all_processes.any? ? pool.all_processes[0].pid : original_process.pid
     end while original_process.pid == new_pid
     
     original_process.wont_be :alive?
 
-    pool.processes.count.must_equal 1
-    pool.processes[0].must_be :alive?
+    pool.all_processes.count.must_equal 1
+    pool.all_processes[0].must_be :alive?
   end
 
   it 'Restart processes' do
@@ -105,18 +105,18 @@ describe Spool::Pool do
       stop_signal :TERM
     end
 
-    pool.processes.count.must_equal 2
+    pool.all_processes.count.must_equal 2
 
-    original_pids = pool.processes.map(&:pid)
+    original_pids = pool.all_processes.map(&:pid)
     
     pool.restart
     
     begin
       sleep SLEEP_TIME
-      new_pids = (pool.processes.count == 2) ? pool.processes.map(&:pid) : original_pids
+      new_pids = (pool.all_processes.count == 2) ? pool.all_processes.map(&:pid) : original_pids
     end until (original_pids & new_pids).empty?
 
-    pool.processes.each { |p| p.must_be :alive?}
+    pool.all_processes.each { |p| p.must_be :alive?}
   end
 
   it 'Stop with timeout' do
@@ -126,7 +126,7 @@ describe Spool::Pool do
       stop_signal :QUIT
     end
 
-    process = pool.processes[0]
+    process = pool.all_processes[0]
 
     Benchmark.realtime do 
       pool.stop 0.1
@@ -136,7 +136,7 @@ describe Spool::Pool do
     end.must_be :<, 1
 
     pool.must_be :stopped?
-    pool.processes.must_be_empty    
+    pool.all_processes.must_be_empty    
     process.wont_be :alive?
   end
 
@@ -146,11 +146,11 @@ describe Spool::Pool do
       command 'ruby -e "loop do; sleep 1; end"'
     end
 
-    pool.processes.count.must_equal 1
+    pool.all_processes.count.must_equal 1
 
     pool.incr 2
 
-    assert_with_timeout(1) { pool.processes.count == 3 }
+    assert_with_timeout(1) { pool.all_processes.count == 3 }
   end
 
   it 'Decrease processes' do
@@ -160,11 +160,11 @@ describe Spool::Pool do
       stop_signal :TERM
     end
 
-    pool.processes.count.must_equal 3
+    pool.all_processes.count.must_equal 3
 
     pool.decr 2
 
-    assert_with_timeout(1) { pool.processes.count == 1 }
+    assert_with_timeout(1) { pool.all_processes.count == 1 }
   end
 
   it 'Change process when satisfied stop condition' do
@@ -187,18 +187,18 @@ describe Spool::Pool do
       stop_signal :TERM
     end
 
-    original_process = pool.processes[0]
+    original_process = pool.all_processes[0]
 
     begin
       sleep SLEEP_TIME
-      new_pid = pool.processes.any? ? pool.processes[0].pid : original_process.pid
+      new_pid = pool.all_processes.any? ? pool.all_processes[0].pid : original_process.pid
     end while original_process.pid == new_pid
 
     text_file = File.read(file_name)
     File.delete(file_name) 
 
     text_file.must_equal 'Finished'
-    pool.processes.count.must_equal 1
+    pool.all_processes.count.must_equal 1
   end
 
   it 'Reload config' do
@@ -208,19 +208,19 @@ describe Spool::Pool do
     pool = Spool::Pool.new(config).tap do |pool|
       t = Thread.new { pool.start }
       t.abort_on_exception = true
-      while pool.processes.count < pool.configuration.processes
+      while pool.all_processes.count < pool.configuration.processes
       end
     end
 
-    pool.processes.count.must_equal 1
+    pool.all_processes.count.must_equal 1
 
     pool.incr 1
 
-    assert_with_timeout(1) { pool.processes.count == 2 }
+    assert_with_timeout(1) { pool.all_processes.count == 2 }
     
     pool.reload
 
-    assert_with_timeout(1) { pool.processes.count == 1 }
+    assert_with_timeout(1) { pool.all_processes.count == 1 }
 
     pool.stop!
   end
