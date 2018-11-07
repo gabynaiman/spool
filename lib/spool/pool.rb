@@ -56,16 +56,20 @@ module Spool
       logger.info(self.class) { "SPOOL START => #{format_processes}" }
 
       while running?
-        action = actions_queue.pop
-        
-        if action
-          logger.info(self.class) { "Starting action #{action[:name]} with params: [#{action[:args].join(', ')}]" }
-          send action[:name], *action[:args] 
-        end
+        begin
+          action = actions_queue.pop
+          
+          if action
+            logger.info(self.class) { "Starting action #{action[:name]} with params: [#{action[:args].join(', ')}]" }
+            send action[:name], *action[:args] 
+          end
 
-        if running?
-          check_status
-          sleep CHECK_TIMEOUT
+          if running?
+            check_status
+            sleep CHECK_TIMEOUT
+          end
+        rescue Exception => e
+          log_error e
         end
       end
 
@@ -107,9 +111,6 @@ module Spool
 
         logger.info(self.class) { "After killing childers. Current State => #{format_processes}" }
       end
-
-    rescue Exception => e
-      log_error e
     end
 
     def _incr(count=1)
@@ -130,15 +131,12 @@ module Spool
       stop_processes working_processes
     end
 
-    def _stop(timeout=0)
+    def _stop
       logger.info(self.class) { "SPOOL STOP" }
 
       stop_processes working_processes
-      Timeout.timeout(timeout) { wait_for_stopped all_processes }
-    rescue Timeout::Error
-      logger.error(self.class) { "ERROR IN SPOOL STOP. Timeout error" }
-    ensure
-      _stop! 
+      wait_for_stopped all_processes
+
       @running = false
     end
 
@@ -154,11 +152,9 @@ module Spool
       end
 
       wait_for_stopped all_processes
-      
-      working_processes.clear
-      zombie_processes.clear
-      
+
       File.delete configuration.pid_file if File.exist? configuration.pid_file
+
       @running = false
     end
 
@@ -179,6 +175,8 @@ module Spool
       while processes_list.any?(&:alive?)
         sleep 0.01
       end
+
+      clear_dead_processes
     end
 
     def check_processes_to_restart

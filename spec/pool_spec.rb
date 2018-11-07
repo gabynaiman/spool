@@ -21,6 +21,7 @@ describe Spool::Pool do
       while pool.all_processes.count < pool.configuration.processes
         sleep 0.01
       end
+      sleep 0.1
     end
   end
 
@@ -119,22 +120,22 @@ describe Spool::Pool do
     pool.all_processes.each { |p| p.must_be :alive?}
   end
 
-  it 'Stop with timeout' do
+  it 'Stop waits for children to die gracefully' do
     pool = start_pool do
       processes 1
-      command 'ruby -e "Signal.trap(:QUIT) { puts :quit; sleep 5; exit 0 }; loop { sleep 1 }"'
+      command 'ruby -e "Signal.trap(:QUIT) { sleep 2; exit 0 }; loop { sleep 1 }"'
       stop_signal :QUIT
     end
 
     process = pool.all_processes[0]
-
+    
     Benchmark.realtime do 
-      pool.stop 0.1
+      pool.stop
       while pool.running?
         sleep SLEEP_TIME
       end 
-    end.must_be :<, 1
-
+    end.must_be :>, 2
+    
     pool.must_be :stopped?
     pool.all_processes.must_be_empty    
     process.wont_be :alive?
