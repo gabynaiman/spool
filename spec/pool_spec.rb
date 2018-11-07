@@ -127,6 +127,8 @@ describe Spool::Pool do
       stop_signal :QUIT
     end
 
+    sleep 1
+    
     process = pool.all_processes[0]
     
     Benchmark.realtime do 
